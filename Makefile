@@ -16,8 +16,24 @@ build: assets
 
 # Build image and run Asynqmon server (with default settings).
 docker:
-	docker build -t asynqmon .
+	docker build --platform linux/amd64 -t asynqmon .
 	docker run --rm \
 		--name asynqmon \
 		-p 8080:8080 \
 		asynqmon --redis-addr=host.docker.internal:6379
+
+build_docker_local:
+	docker run -d -p 8080:5000 --name registry registry:latest
+	sleep 5
+
+	docker buildx create --driver-opt network=host --name multi-arch --use
+
+	docker buildx build --platform linux/amd64,linux/arm64 --push -t localhost:8080/asynqmon:latest .
+	docker pull localhost:8080/asynqmon:latest
+	docker image tag localhost:8080/asynqmon:latest asynqmon:latest
+	docker rmi localhost:8080/asynqmon:latest
+
+	docker buildx rm multi-arch
+
+	docker stop registry
+	docker rm registry
